@@ -52,7 +52,7 @@ def call_dify(user_text, user_id="line-user"):
         "user": user_id
     }
 
-    r = requests.post(url, headers=headers, json=payload, timeout=20)
+    r = requests.post(url, headers=headers, json=payload, timeout=60)
     print("Dify status:", r.status_code, r.text[:500])
     r.raise_for_status()
 
