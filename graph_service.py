@@ -7,6 +7,11 @@ from rapidfuzz import process as rf_process
 
 from config import NEO4J_PASSWORD, NEO4J_URI, NEO4J_USER
 
+print("=== ENV CHECK ===")
+print("NEO4J_URI exists:", bool(NEO4J_URI))
+print("NEO4J_USER exists:", bool(NEO4J_USER))
+print("NEO4J_PASSWORD exists:", bool(NEO4J_PASSWORD))
+print("=================")
 
 # ==============================================================================
 # 1. JSON / Schema Load
