@@ -440,7 +440,17 @@ def resolve_node_lookup_target(user_question, resolved, relation_hint):
     2. 如果不是完整節點名稱，但有 relation_hint，視為「某節點 + 某類關係」查詢。
     3. 如果沒有 relation_hint，視為單節點查詢。
     """
-    raw_question = (clean_text(user_question) or "").split(":")[0].strip()
+    raw_question = clean_text(user_question) or ""
+    raw_question = raw_question.strip()
+    
+    # 只有在冒號後面是明顯查詢詞時才切
+    query_suffixes = ["原始問題", "製程", "流程", "材料", "認證", "標準", "部門", "lesson", "教訓"]
+    
+    for suffix in query_suffixes:
+        marker = ":" + suffix
+        if raw_question.endswith(marker):
+            raw_question = raw_question[:-len(marker)].strip()
+            break
 
     # 先用整句做全節點比對：處理「FPC Failure due to LPI process change」這種完整 title
     raw_candidates = find_candidate_nodes(
