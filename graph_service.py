@@ -453,15 +453,50 @@ def resolve_node_lookup_target(user_question, resolved, relation_hint):
         best = raw_candidates[0]
 
         # 完全匹配或高分唯一候選：直接當成單節點查詢
-        if best["score"] >= 100 or len(raw_candidates) == 1:
+        # ===== 先檢查完全相同 =====
+    exact_matches = []
+    
+    for c in raw_candidates:
+        candidate_name = str(c.get("name", "")).strip().lower()
+    
+        if candidate_name == raw_question.lower():
+            exact_matches.append(c)
+    
+    # ===== 只有一個完全相同：直接使用 =====
+    if len(exact_matches) == 1:
+        best = exact_matches[0]
+    
+        return {
+            "label": best["label"],
+            "matched": best["name"],
+            "score": 100,
+            "input": raw_question
+        }, "single_node_detail", None
+    
+    # ===== 多個完全相同：才 ambiguous =====
+    if len(exact_matches) > 1:
+        return None, "ambiguous_node", {
+            "query_type": "ambiguous_node",
+            "found": False,
+            "message": "找到多個完全相同名稱節點，請選擇",
+            "input": raw_question,
+            "candidates": exact_matches[:5]
+        }
+    
+    # ===== 原本 fuzzy matching 邏輯 =====
+    if raw_candidates:
+        best = raw_candidates[0]
+    
+        # 高分唯一候選
+        if best["score"] >= 95 and len(raw_candidates) == 1:
             return {
                 "label": best["label"],
                 "matched": best["name"],
                 "score": best["score"],
                 "input": raw_question
             }, "single_node_detail", None
-
-        # 多個高分候選才要求釐清
+    
+        # 多候選
         return None, "ambiguous_node", {
             "query_type": "ambiguous_node",
             "found": False,
@@ -469,7 +504,6 @@ def resolve_node_lookup_target(user_question, resolved, relation_hint):
             "input": raw_question,
             "candidates": raw_candidates[:5]
         }
-
     # 有 relation_hint 時，代表使用者問的是「某節點的某類關係」
     # 此時不要用 lesson_keyword 當主節點，避免「教訓 / 原始問題」誤導。
     if relation_hint:
