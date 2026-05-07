@@ -29,7 +29,27 @@ def push_line_text(to_id, text):
     r = requests.post(url, headers=headers, json=payload, timeout=15)
     print("LINE push status:", r.status_code, r.text)
     return r
+def reply_line_text(reply_token, text):
+    url = "https://api.line.me/v2/bot/message/reply"
 
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {LINE_CHANNEL_ACCESS_TOKEN}"
+    }
+
+    body = {
+        "replyToken": reply_token,
+        "messages": [
+            {
+                "type": "text",
+                "text": text[:5000]
+            }
+        ]
+    }
+
+    r = requests.post(url, headers=headers, json=body)
+    print("LINE reply:", r.status_code, r.text)
+    return r
 
 def reply_line_text_and_image(reply_token, text, image_url=None):
     url = "https://api.line.me/v2/bot/message/reply"
