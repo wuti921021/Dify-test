@@ -143,7 +143,6 @@ GRAPH_HTML = """
                 server_url: "{{ neo4j_uri }}",
                 server_user: "{{ neo4j_user }}",
                 server_password: "{{ neo4j_password }}",
-                encrypted: "ENCRYPTION_ON",
                 initial_cypher: finalCypher,
 
                 labels: {
