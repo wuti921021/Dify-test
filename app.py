@@ -1,7 +1,7 @@
 import os
 import json
 import threading
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, send_file
 from graph_service import query_graph_by_router, test_neo4j
 from line_service import (
     reply_line_text,
@@ -168,6 +168,24 @@ def static_files(filename):
     return send_from_directory(
         os.path.join(os.path.dirname(os.path.abspath(__file__)), "static"),
         filename
+    )
+@app.route("/graph/image", methods=["GET"])
+def graph_image():
+    target = request.args.get("target", "").strip()
+
+    if not target:
+        return "missing target", 400
+
+    image_io = generate_node_graph_image_bytes(target)
+
+    if not image_io:
+        return "image not found", 404
+
+    return send_file(
+        image_io,
+        mimetype="image/png",
+        as_attachment=False,
+        download_name=f"{target}_graph.png"
     )
 
 @app.route("/graph", methods=["GET"])
