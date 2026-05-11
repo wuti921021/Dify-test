@@ -323,26 +323,27 @@ def graph_page():
     return render_graph_page()
 
 # ===== LINE Webhook =====
+# ===== LINE Webhook =====
 @app.route("/line/webhook", methods=["POST"])
 def line_webhook():
     body = request.get_json()
+
     print("DEBUG event =", body)
 
     events = body.get("events", [])
 
     for event in events:
+
         if event.get("type") != "message":
             continue
 
         message = event.get("message", {})
+
         if message.get("type") != "text":
             continue
 
         reply_token = event.get("replyToken")
-        user_text = message.get("text", "")
-
         source = event.get("source", {})
-        source_type = source.get("type")
 
         to_id = (
             source.get("groupId")
@@ -354,85 +355,161 @@ def line_webhook():
             print("缺少 reply_token 或 to_id")
             continue
 
-        # 群組或聊天室：只有標註機器人才回應
+        # ===== 群組需標註 bot =====
         ok, text = should_reply(event)
 
         if not ok:
             print("群組訊息未標註 bot，不回應")
             continue
-        
-        cleaned_text = clean_line_text(remove_mention(text, event))
+
+        cleaned_text = clean_line_text(
+            remove_mention(text, event)
+        )
+
         print("DEBUG cleaned_text =", cleaned_text)
 
         selection_key = build_selection_key(to_id, source)
 
-       if cleaned_text.isdigit() and selection_key in PENDING_SELECTIONS:
+        # ===== 候選節點選擇 =====
+        if (
+            cleaned_text.isdigit()
+            and selection_key in PENDING_SELECTIONS
+        ):
+
             selection = int(cleaned_text)
-            pending = PENDING_SELECTIONS.get(selection_key, {})
+
+            pending = PENDING_SELECTIONS.get(
+                selection_key,
+                {}
+            )
+
             candidates = pending.get("candidates", [])
+
             mode = pending.get("mode", "name")
-        
-            # 照你的需求：只要進入選擇流程，不管對錯都清除暫存
+
+            # ===== 清除暫存 =====
             del PENDING_SELECTIONS[selection_key]
-        
-            if not (1 <= selection <= len(candidates)):
+
+            # ===== 編號錯誤 =====
+            if not (
+                1 <= selection <= len(candidates)
+            ):
+
                 reply_line_text(
                     reply_token,
-                    f"編號 {selection} 不在候選範圍內，本次選擇已取消。請重新查詢。"
+                    (
+                        f"編號 {selection} 不在候選範圍內，"
+                        "本次選擇已取消。請重新查詢。"
+                    )
                 )
+
                 continue
-        
+
             selected = candidates[selection - 1]
-        
-            # 情況 A：同名節點，用 node_id 查
+
+            # ===== 同名節點 =====
             if mode == "node_id":
+
                 selected_node_id = selected.get("node_id")
-                selected_name = selected.get("name", "")
-        
-                result = query_node_by_element_id(selected_node_id)
-        
+
+                selected_name = selected.get(
+                    "name",
+                    ""
+                )
+
+                result = query_node_by_element_id(
+                    selected_node_id
+                )
+
                 if not result.get("found"):
-                    reply_line_text(reply_token, "查無相關資料")
+
+                    reply_line_text(
+                        reply_token,
+                        "查無相關資料"
+                    )
+
                     continue
-        
+
                 lines = []
-                lines.append(f"已選擇：{selected_name}（{result.get('label', 'Unknown')}）")
+
+                lines.append(
+                    f"已選擇：{selected_name}"
+                    f"（{result.get('label', 'Unknown')}）"
+                )
+
                 lines.append("")
-        
-                props = result.get("properties", {})
+
+                props = result.get(
+                    "properties",
+                    {}
+                )
+
                 if props:
+
                     lines.append("節點屬性：")
+
                     for k, v in props.items():
-                        if v is not None and str(v).strip():
-                            lines.append(f"- {k}: {v}")
+
+                        if (
+                            v is not None
+                            and str(v).strip()
+                        ):
+
+                            lines.append(
+                                f"- {k}: {v}"
+                            )
+
                     lines.append("")
-        
-                relations = result.get("relations", [])
+
+                relations = result.get(
+                    "relations",
+                    []
+                )
+
                 if relations:
+
                     lines.append("相關關係：")
+
                     for r in relations[:10]:
+
                         lines.append(
-                            f"- {r.get('relation')} → {r.get('target_name')}（{r.get('target_label')}）"
+                            f"- {r.get('relation')} → "
+                            f"{r.get('target_name')}"
+                            f"（{r.get('target_label')}）"
                         )
-        
-                reply_line_text(reply_token, "\n".join(lines))
+
+                reply_line_text(
+                    reply_token,
+                    "\n".join(lines)
+                )
+
                 continue
-        
-            # 情況 B：一般不同名稱候選，用 name 繼續查
+
+            # ===== 一般候選 =====
             selected_node = selected
+
             cleaned_text = selected_node
-            print("DEBUG selected candidate =", selected_node)
-        
+
+            print(
+                "DEBUG selected candidate =",
+                selected_node
+            )
+
+        # ===== 背景查詢 =====
         thread = threading.Thread(
             target=run_dify_background,
             args=(
                 to_id,
                 cleaned_text,
-                source.get("userId", "line-user"),
+                source.get(
+                    "userId",
+                    "line-user"
+                ),
                 selection_key
             ),
             daemon=True
         )
+
         thread.start()
 
     return "OK", 200
