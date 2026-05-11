@@ -18,7 +18,10 @@ from graph_web_service import (
     render_graph_page, 
     extract_graph_target
 )
-from graph_image_service import build_node_graph_image_url
+from graph_image_service import (
+    build_node_graph_image_url,
+    generate_node_graph_image_bytes
+)
 
 app = Flask(__name__)
 
