@@ -22,13 +22,33 @@ FONT_PATH = os.path.join(
     "NotoSansCJKtc-Regular.otf"
 )
 
-font_manager.fontManager.addfont(FONT_PATH)
-CHINESE_FONT = font_manager.FontProperties(fname=FONT_PATH)
-CHINESE_FONT_NAME = CHINESE_FONT.get_name()
+try:
+    font_manager.fontManager.addfont(FONT_PATH)
 
-plt.rcParams["font.family"] = CHINESE_FONT_NAME
-plt.rcParams["axes.unicode_minus"] = False
+    CHINESE_FONT = font_manager.FontProperties(fname=FONT_PATH)
+    CHINESE_FONT_NAME = CHINESE_FONT.get_name()
 
+    plt.rcParams["font.family"] = CHINESE_FONT_NAME
+    plt.rcParams["axes.unicode_minus"] = False
+
+    print("DEBUG FONT_PATH:", FONT_PATH)
+    print("DEBUG FONT_EXISTS:", os.path.exists(FONT_PATH))
+    print("DEBUG FONT_SIZE:", os.path.getsize(FONT_PATH))
+    print("DEBUG FONT_NAME:", CHINESE_FONT_NAME)
+
+except Exception as e:
+    print("WARNING: Chinese font load failed")
+    print("WARNING FONT_PATH:", FONT_PATH)
+    print("WARNING FONT_EXISTS:", os.path.exists(FONT_PATH))
+
+    if os.path.exists(FONT_PATH):
+        print("WARNING FONT_SIZE:", os.path.getsize(FONT_PATH))
+
+    print("WARNING FONT_ERROR:", repr(e))
+
+    CHINESE_FONT = None
+    CHINESE_FONT_NAME = None
+    
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 os.makedirs(STATIC_DIR, exist_ok=True)
 
