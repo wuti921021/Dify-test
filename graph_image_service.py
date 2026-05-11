@@ -282,3 +282,20 @@ def build_node_graph_image_url(target):
     cache_buster = uuid.uuid4().hex
 
     return f"{PUBLIC_BASE_URL}/graph/image?target={encoded_target}&v={cache_buster}"
+
+from io import BytesIO
+
+
+def generate_node_graph_image_bytes(target, limit=50):
+    filename = generate_node_graph_image(target, limit=limit)
+
+    if not filename:
+        return None
+
+    filepath = os.path.join(STATIC_DIR, filename)
+
+    with open(filepath, "rb") as f:
+        image_io = BytesIO(f.read())
+
+    image_io.seek(0)
+    return image_io
