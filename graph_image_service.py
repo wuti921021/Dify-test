@@ -16,16 +16,32 @@ STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 os.makedirs(STATIC_DIR, exist_ok=True)
 
 def get_chinese_font():
-    font_candidates = [
+    font_paths = [
         "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
         "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.otf",
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.otf",
         "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/truetype/noto/NotoSansCJK-Bold.ttc",
+        "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.otf",
+        "/usr/share/fonts/truetype/noto/NotoSansCJK-Bold.otf",
     ]
 
-    for font_path in font_candidates:
-        if os.path.exists(font_path):
-            return fm.FontProperties(fname=font_path)
+    for path in font_paths:
+        if os.path.exists(path):
+            print("DEBUG found Chinese font:", path)
+            return fm.FontProperties(fname=path)
 
+    # fallback：掃描整個 /usr/share/fonts
+    for root, dirs, files in os.walk("/usr/share/fonts"):
+        for file in files:
+            if file.endswith((".ttf", ".ttc", ".otf")):
+                full_path = os.path.join(root, file)
+                if "NotoSansCJK" in full_path or "NotoSerifCJK" in full_path:
+                    print("DEBUG found Chinese font by scan:", full_path)
+                    return fm.FontProperties(fname=full_path)
+
+    print("WARNING: Chinese font not found")
     return None
 
 def shorten_text(text, max_len=None):
@@ -57,6 +73,25 @@ def query_node_graph_rows(target, limit=50):
         "target": safe_target,
         "limit": limit
     })
+def wrap_text(text, line_len=8):
+    if not text:
+        return ""
+
+    text = str(text)
+
+    lines = []
+    current = ""
+
+    for ch in text:
+        current += ch
+        if len(current) >= line_len:
+            lines.append(current)
+            current = ""
+
+    if current:
+        lines.append(current)
+
+    return "\n".join(lines)
 
 
 def generate_node_graph_image(target, limit=50):
@@ -91,8 +126,8 @@ def generate_node_graph_image(target, limit=50):
 
     neighbors = [n for n in G.nodes if n != center]
     count = len(neighbors)
-
-    radius = 4.0
+    
+    radius = 2.8 + min(count, 20) * 0.08
     for i, node in enumerate(neighbors):
         angle = 2 * math.pi * i / max(count, 1)
         pos[node] = (
@@ -100,7 +135,7 @@ def generate_node_graph_image(target, limit=50):
             radius * math.sin(angle)
         )
 
-    plt.figure(figsize=(18, 13))
+    plt.figure(figsize=(16, 11))
     ax = plt.gca()
     ax.set_facecolor("#f7f7f7")
 
@@ -148,7 +183,7 @@ def generate_node_graph_image(target, limit=50):
     )
 
     node_labels = {
-        node: shorten_text(node)
+        node: wrap_text(node, line_len=9 if node != center else 12)
         for node in G.nodes
     }
 
