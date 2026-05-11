@@ -20,6 +20,7 @@ from graph_web_service import (
 )
 from graph_image_service import (
     generate_node_graph_image,
+    generate_node_graph_image_bytes,
     build_node_graph_image_url
 )
 
