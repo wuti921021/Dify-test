@@ -158,12 +158,19 @@ def should_reply(event):
     if source.get("type") == "user":
         return True, text
 
-    # 群組 / 聊天室：只有標註到 Bot 自己才回覆
+    # 群組 / 聊天室
     if source.get("type") in ["group", "room"]:
         mention = message.get("mention", {})
         mentionees = mention.get("mentionees", [])
 
+        print("DEBUG mentionees:", mentionees)
+
         for m in mentionees:
+            # LINE 通常會用 isSelf 標示「被標註的是 Bot 自己」
+            if m.get("isSelf") is True:
+                return True, text
+
+            # 備用判斷：比對 Bot userId
             if m.get("userId") == LINE_BOT_USER_ID:
                 return True, text
 
@@ -174,15 +181,13 @@ def should_reply(event):
 
 def remove_mention(text, event):
     message = event.get("message", {})
-
     mention = message.get("mention", {})
     mentionees = mention.get("mentionees", [])
 
     indices = []
 
     for m in mentionees:
-        # 只移除 Bot 自己的 mention
-        if m.get("userId") == LINE_BOT_USER_ID:
+        if m.get("isSelf") is True or m.get("userId") == LINE_BOT_USER_ID:
             start = m.get("index", 0)
             end = start + m.get("length", 0)
             indices.append((start, end))
