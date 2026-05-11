@@ -14,10 +14,11 @@ NEO4J_USER = os.environ.get("NEO4J_USER")
 NEO4J_PASSWORD = os.environ.get("NEO4J_PASSWORD")
 
 # ===== 給 NeoVis 前端用 =====
-NEO4J_BROWSER_URI = (
+NEO4J_GRAPH_URI = (
     NEO4J_URI
-    .replace("neo4j+s://", "bolt://")
-    .replace("neo4j+ssc://", "bolt://")
+    .replace("neo4j+s://", "neo4j://")
+    .replace("neo4j+ssc://", "neo4j://")
+    .replace("bolt+s://", "neo4j://")
 )
 
 # ===== Render URL =====
