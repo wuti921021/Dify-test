@@ -20,7 +20,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FONT_PATH = os.path.join(
     BASE_DIR,
     "fonts",
-    "NotoSansTC-VariableFont_wght"
+    "NotoSansTC-VariableFont_wght.ttf"
 )
 
 font_manager.fontManager.addfont(FONT_PATH)
