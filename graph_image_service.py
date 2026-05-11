@@ -286,7 +286,7 @@ def generate_node_graph_image(target, limit=50):
     ax.text(
         0.5,
         1.03,
-        f"{center} 關係圖",
+        f"{center} graph",
         transform=ax.transAxes,
         ha="center",
         va="bottom",
