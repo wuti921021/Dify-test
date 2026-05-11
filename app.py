@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import threading
 from flask import Flask, request, jsonify, send_from_directory, send_file
@@ -91,17 +92,22 @@ def extract_candidates_from_answer(answer):
     for line in answer.splitlines():
         line = line.strip()
 
-        # 支援：1. 名稱：BHC212（類型：Project）
+        # 格式 1：1. 名稱：BHC212（類型：Project）
         if "名稱：" in line:
             try:
                 name_part = line.split("名稱：", 1)[1]
                 name = name_part.split("（", 1)[0].strip()
-
                 if name:
                     candidates.append(name)
-
             except Exception:
                 pass
+
+        # 格式 2：1. BHC212 (Project)
+        match = re.match(r"^\s*\d+\.\s*([A-Za-z0-9_\-:]+)\s*\(", line)
+        if match:
+            name = match.group(1).strip()
+            if name:
+                candidates.append(name)
 
     return candidates
         
@@ -316,7 +322,12 @@ def line_webhook():
         
         thread = threading.Thread(
             target=run_dify_background,
-            args=(to_id, cleaned_text, source.get("userId", "line-user"), selection_key),
+            args=(
+                to_id,
+                cleaned_text,
+                source.get("userId", "line-user"),
+                selection_key
+            ),
             daemon=True
         )
         thread.start()
