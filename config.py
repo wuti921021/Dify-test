@@ -3,6 +3,7 @@ import os
 # ===== LINE =====
 LINE_CHANNEL_ACCESS_TOKEN = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN")
 LINE_CHANNEL_SECRET = os.environ.get("LINE_CHANNEL_SECRET")
+LINE_BOT_USER_ID = "U2ed198671d3a68ad08e3957bbb2d0286"
 
 # ===== DIFY =====
 DIFY_API_KEY = os.environ.get("DIFY_API_KEY")
