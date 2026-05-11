@@ -1,7 +1,12 @@
 import os
 import uuid
 import math
+
+import matplotlib
+matplotlib.use("Agg")
+
 import matplotlib.pyplot as plt
+import matplotlib.font_manager as fm
 import networkx as nx
 
 from graph_service import run_cypher
@@ -10,14 +15,23 @@ from config import PUBLIC_BASE_URL
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 os.makedirs(STATIC_DIR, exist_ok=True)
 
+def get_chinese_font():
+    font_candidates = [
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
+        "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+    ]
 
-def shorten_text(text, max_len=18):
+    for font_path in font_candidates:
+        if os.path.exists(font_path):
+            return fm.FontProperties(fname=font_path)
+
+    return None
+
+def shorten_text(text, max_len=None):
     if not text:
         return ""
-    text = str(text)
-    if len(text) <= max_len:
-        return text
-    return text[:max_len] + "..."
+    return str(text)
 
 
 def query_node_graph_rows(target, limit=50):
@@ -86,7 +100,7 @@ def generate_node_graph_image(target, limit=50):
             radius * math.sin(angle)
         )
 
-    plt.figure(figsize=(12, 9))
+    plt.figure(figsize=(18, 13))
     ax = plt.gca()
     ax.set_facecolor("#f7f7f7")
 
@@ -109,9 +123,9 @@ def generate_node_graph_image(target, limit=50):
         node_colors.append(label_color_map.get(node_label, "#CCCCCC"))
 
         if node == center:
-            node_sizes.append(3000)
+            node_sizes.append(5000)
         else:
-            node_sizes.append(1800)
+            node_sizes.append(3200)
 
     nx.draw_networkx_nodes(
         G,
@@ -134,7 +148,7 @@ def generate_node_graph_image(target, limit=50):
     )
 
     node_labels = {
-        node: shorten_text(node, 18 if node != center else 24)
+        node: shorten_text(node)
         for node in G.nodes
     }
 
@@ -152,14 +166,21 @@ def generate_node_graph_image(target, limit=50):
         for u, v, data in G.edges(data=True)
     }
 
-    nx.draw_networkx_edge_labels(
-        G,
-        pos,
-        edge_labels=edge_labels,
-        font_size=8,
-        font_color="#555555",
-        rotate=True
-    )
+    chinese_font = get_chinese_font()
+
+    for node, (x, y) in pos.items():
+        plt.text(
+            x,
+            y,
+            node_labels[node],
+            fontsize=9,
+            color="black",
+            fontweight="bold",
+            fontproperties=chinese_font,
+            ha="center",
+            va="center",
+            wrap=True
+        )
 
     plt.title(f"{center} 關係圖", fontsize=18, fontweight="bold")
     plt.axis("off")
