@@ -149,8 +149,21 @@ def run_dify_background(to_id, user_text, user_id="line-user"):
 
         # ===== 3. 如果是單節點查詢，同時產生圖片 =====
         if is_simple_node_query(user_text):
-            image_url = build_node_graph_image_url(user_text)
 
+            # 如果 Dify 回傳多候選節點，不產生圖
+            ambiguous_keywords = [
+                "多個可能",
+                "請確認",
+                "請提供完整名稱",
+                "候選節點"
+            ]
+        
+            if any(keyword in answer for keyword in ambiguous_keywords):
+                push_line_text(to_id, answer)
+                return
+        
+            image_url = build_node_graph_image_url(user_text)
+        
             if image_url:
                 push_line_text_and_image(
                     to_id,
@@ -158,7 +171,6 @@ def run_dify_background(to_id, user_text, user_id="line-user"):
                     image_url=image_url
                 )
                 return
-
         # ===== 4. 其他問題只回文字 =====
         push_line_text(to_id, answer)
 
