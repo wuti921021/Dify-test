@@ -178,6 +178,7 @@ def generate_node_graph_image(target, limit=50):
     plt.figure(figsize=(15, 10))
     ax = plt.gca()
     ax.set_facecolor("#f7f7f7")
+    chinese_font = get_chinese_font()
 
     label_color_map = {
         "Project": "#00D9E9",
@@ -202,15 +203,6 @@ def generate_node_graph_image(target, limit=50):
         else:
             node_sizes.append(3600)
 
-    nx.draw_networkx_nodes(
-        G,
-        pos,
-        node_color=node_colors,
-        node_size=node_sizes,
-        edgecolors="#ffffff",
-        linewidths=2
-    )
-
     nx.draw_networkx_edges(
         G,
         pos,
@@ -223,7 +215,7 @@ def generate_node_graph_image(target, limit=50):
     )
 
     node_labels = {
-        node: wrap_label(node, max_chars=16 if node == center else 14)
+        node: wrap_label(node, max_chars=18 if node == center else 13)
         for node in G.nodes
     }
 
@@ -236,30 +228,34 @@ def generate_node_graph_image(target, limit=50):
         font_weight="bold"
     )
 
-    edge_labels = {
-        (u, v): data.get("label", "")
-        for u, v, data in G.edges(data=True)
-    }
-
-    nx.draw_networkx_edge_labels(
-        G,
-        pos,
-        edge_labels=edge_labels,
-        font_size=7,
-        font_color="#555555",
-        font_family=None,
-        font_weight="bold",
-        label_pos=0.55,
-        rotate=True,
-        bbox=dict(
-            facecolor="white",
-            edgecolor="none",
-            alpha=0.65,
-            pad=0.5
+    for u, v, data in G.edges(data=True):
+        if u not in pos or v not in pos:
+            continue
+    
+        x1, y1 = pos[u]
+        x2, y2 = pos[v]
+    
+        mx = x1 * 0.42 + x2 * 0.58
+        my = y1 * 0.42 + y2 * 0.58
+    
+        plt.text(
+            mx,
+            my,
+            data.get("label", ""),
+            fontsize=7,
+            color="#555555",
+            fontweight="bold",
+            fontproperties=chinese_font,
+            ha="center",
+            va="center",
+            rotation=0,
+            bbox=dict(
+                facecolor="white",
+                edgecolor="none",
+                alpha=0.65,
+                pad=0.4
+            )
         )
-    )
-
-    chinese_font = get_chinese_font()
 
     for node, (x, y) in pos.items():
         is_center = node == center
@@ -268,18 +264,18 @@ def generate_node_graph_image(target, limit=50):
             x,
             y,
             node_labels[node],
-            fontsize=13 if is_center else 10,
+            fontsize=12 if is_center else 9,
             color="black",
             fontweight="bold",
             fontproperties=chinese_font,
             ha="center",
             va="center",
-            linespacing=1.2,
+            linespacing=1.15,
             bbox=dict(
                 facecolor="white",
                 edgecolor="none",
-                alpha=0.65,
-                pad=1.5
+                alpha=0.45,
+                pad=1.2
             )
         )
 
