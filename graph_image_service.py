@@ -4,9 +4,10 @@ import math
 
 import matplotlib
 matplotlib.use("Agg")
+
+import matplotlib.pyplot as plt
 plt.rcParams['font.sans-serif'] = ['Noto Sans CJK JP']
 plt.rcParams['axes.unicode_minus'] = False
-import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
 import networkx as nx
 from io import BytesIO
