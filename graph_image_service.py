@@ -15,6 +15,46 @@ from config import PUBLIC_BASE_URL
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 os.makedirs(STATIC_DIR, exist_ok=True)
 
+def wrap_label(text, max_chars=14):
+    if not text:
+        return ""
+
+    text = str(text)
+
+    # 英文或混合英文：優先用空白切單字
+    if " " in text:
+        words = text.split()
+        lines = []
+        current = ""
+
+        for word in words:
+            if len(current) + len(word) + 1 <= max_chars:
+                current = f"{current} {word}".strip()
+            else:
+                if current:
+                    lines.append(current)
+                current = word
+
+        if current:
+            lines.append(current)
+
+        return "\n".join(lines)
+
+    # 中文或無空白字串：固定字數換行
+    lines = []
+    for i in range(0, len(text), max_chars):
+        lines.append(text[i:i + max_chars])
+
+    return "\n".join(lines)
+
+
+def get_relation_label(label):
+    if not label:
+        return ""
+
+    # 關係名稱通常很長，這裡保留完整，但用換行避免擠在一起
+    return str(label).replace("_", "_\n")
+
 def get_chinese_font():
     font_paths = [
         "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
@@ -127,7 +167,7 @@ def generate_node_graph_image(target, limit=50):
     neighbors = [n for n in G.nodes if n != center]
     count = len(neighbors)
     
-    radius = 2.8 + min(count, 20) * 0.08
+    radius = 2.2 + min(count, 20) * 0.05
     for i, node in enumerate(neighbors):
         angle = 2 * math.pi * i / max(count, 1)
         pos[node] = (
@@ -135,7 +175,7 @@ def generate_node_graph_image(target, limit=50):
             radius * math.sin(angle)
         )
 
-    plt.figure(figsize=(16, 11))
+    plt.figure(figsize=(15, 10))
     ax = plt.gca()
     ax.set_facecolor("#f7f7f7")
 
@@ -158,9 +198,9 @@ def generate_node_graph_image(target, limit=50):
         node_colors.append(label_color_map.get(node_label, "#CCCCCC"))
 
         if node == center:
-            node_sizes.append(5000)
+            node_sizes.append(5200)
         else:
-            node_sizes.append(3200)
+            node_sizes.append(3600)
 
     nx.draw_networkx_nodes(
         G,
@@ -183,7 +223,7 @@ def generate_node_graph_image(target, limit=50):
     )
 
     node_labels = {
-        node: wrap_text(node, line_len=9 if node != center else 12)
+        node: wrap_label(node, max_chars=16 if node == center else 14)
         for node in G.nodes
     }
 
@@ -201,23 +241,54 @@ def generate_node_graph_image(target, limit=50):
         for u, v, data in G.edges(data=True)
     }
 
+    nx.draw_networkx_edge_labels(
+        G,
+        pos,
+        edge_labels=edge_labels,
+        font_size=7,
+        font_color="#555555",
+        font_family=None,
+        font_weight="bold",
+        label_pos=0.55,
+        rotate=True,
+        bbox=dict(
+            facecolor="white",
+            edgecolor="none",
+            alpha=0.65,
+            pad=0.5
+        )
+    )
+
     chinese_font = get_chinese_font()
 
     for node, (x, y) in pos.items():
+        is_center = node == center
+    
         plt.text(
             x,
             y,
             node_labels[node],
-            fontsize=9,
+            fontsize=13 if is_center else 10,
             color="black",
             fontweight="bold",
             fontproperties=chinese_font,
             ha="center",
             va="center",
-            wrap=True
+            linespacing=1.2,
+            bbox=dict(
+                facecolor="white",
+                edgecolor="none",
+                alpha=0.65,
+                pad=1.5
+            )
         )
 
-    plt.title(f"{center} 關係圖", fontsize=18, fontweight="bold")
+    plt.title(
+        f"{center} 關係圖",
+        fontsize=20,
+        fontweight="bold",
+        fontproperties=chinese_font
+    )
     plt.axis("off")
     plt.tight_layout()
 
