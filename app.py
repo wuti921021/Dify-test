@@ -25,7 +25,7 @@ from graph_image_service import (
 )
 
 app = Flask(__name__)
-
+PENDING_SELECTIONS = {}
 
 # ===== 基本 API =====
 @app.route("/", methods=["GET"])
@@ -78,6 +78,33 @@ def graph_query():
             }]
         }), 200
         
+def build_selection_key(to_id, source):
+    user_id = source.get("userId", "unknown-user")
+    return f"{to_id}:{user_id}"
+    
+def extract_candidates_from_answer(answer):
+    candidates = []
+
+    if not answer:
+        return candidates
+
+    for line in answer.splitlines():
+        line = line.strip()
+
+        # 支援：1. 名稱：BHC212（類型：Project）
+        if "名稱：" in line:
+            try:
+                name_part = line.split("名稱：", 1)[1]
+                name = name_part.split("（", 1)[0].strip()
+
+                if name:
+                    candidates.append(name)
+
+            except Exception:
+                pass
+
+    return candidates
+        
 def is_simple_node_query(text):
     if not text:
         return False
@@ -116,7 +143,7 @@ def is_simple_node_query(text):
     return True
 
 # ===== 背景執行 Dify，完成後 push 給 LINE =====
-def run_dify_background(to_id, user_text, user_id="line-user"):
+def run_dify_background(to_id, user_text, user_id="line-user", selection_key=None):
     try:
         print("背景任務開始:", user_text)
 
@@ -146,6 +173,21 @@ def run_dify_background(to_id, user_text, user_id="line-user"):
 
         if not answer:
             answer = "查詢完成，但沒有取得有效結果。"
+
+            candidates = extract_candidates_from_answer(answer)
+
+            if len(candidates) >= 2 and selection_key:
+                PENDING_SELECTIONS[selection_key] = {
+                    "candidates": candidates,
+                    "original_query": user_text,
+                    "user_id": user_id
+                }
+            
+                push_line_text(
+                    to_id,
+                    answer + "\n\n請直接輸入編號，例如：1 或 2。若輸入錯誤，系統會取消本次選擇。"
+                )
+                return
 
         # ===== 3. 如果是單節點查詢，同時產生圖片 =====
         if is_simple_node_query(user_text):
@@ -249,10 +291,32 @@ def line_webhook():
         
         cleaned_text = clean_line_text(remove_mention(text, event))
         print("DEBUG cleaned_text =", cleaned_text)
+
+        selection_key = build_selection_key(to_id, source)
+
+        if cleaned_text.isdigit() and selection_key in PENDING_SELECTIONS:
+            selection = int(cleaned_text)
+            pending = PENDING_SELECTIONS.get(selection_key, {})
+            candidates = pending.get("candidates", [])
+        
+            # 不管選對或選錯，只要進入選擇流程，就先清掉暫存
+            del PENDING_SELECTIONS[selection_key]
+        
+            if 1 <= selection <= len(candidates):
+                selected_node = candidates[selection - 1]
+                cleaned_text = selected_node
+                print("DEBUG selected candidate =", selected_node)
+        
+            else:
+                reply_line_text(
+                    reply_token,
+                    f"編號 {selection} 不在候選範圍內，本次選擇已取消。請重新查詢。"
+                )
+                continue
         
         thread = threading.Thread(
             target=run_dify_background,
-            args=(to_id, cleaned_text, source.get("userId", "line-user")),
+            args=(to_id, cleaned_text, source.get("userId", "line-user"), selection_key),
             daemon=True
         )
         thread.start()
