@@ -432,22 +432,13 @@ def line_webhook():
 
                 if not result.get("found"):
 
-                    # ===== 產生 graph image =====
-                    image_url = build_node_graph_image_url(selected_name)
-                        
-                        if image_url:
-                            reply_line_text_and_image(
-                                reply_token,
-                                "\n".join(lines),
-                                image_url=image_url
-                            )
-                        else:
-                            reply_line_text(
-                                reply_token,
-                                "\n".join(lines)
-                            )
-                        
-                        continue
+                    reply_line_text(
+                        reply_token,
+                        "查無相關資料"
+                    )
+
+                    continue
+
                 lines = []
 
                 lines.append(
@@ -496,10 +487,25 @@ def line_webhook():
                             f"（{r.get('target_label')}）"
                         )
 
-                reply_line_text(
-                    reply_token,
-                    "\n".join(lines)
+                # ===== 用 node_id 產圖 =====
+                image_url = build_node_graph_image_url_by_id(
+                    selected_node_id
                 )
+
+                if image_url:
+
+                    reply_line_text_and_image(
+                        reply_token,
+                        "\n".join(lines),
+                        image_url=image_url
+                    )
+
+                else:
+
+                    reply_line_text(
+                        reply_token,
+                        "\n".join(lines)
+                    )
 
                 continue
 
