@@ -145,7 +145,7 @@ def generate_node_graph_image(target, limit=50):
     neighbors = [n for n in G.nodes if n != center]
     count = len(neighbors)
 
-    radius = 2.45 + min(count, 20) * 0.06
+    radius = 1.55 + min(count, 20) * 0.035
 
     for i, node in enumerate(neighbors):
         angle = 2 * math.pi * i / max(count, 1)
@@ -154,7 +154,7 @@ def generate_node_graph_image(target, limit=50):
             radius * math.sin(angle)
         )
 
-    fig, ax = plt.subplots(figsize=(18, 12))
+    fig, ax = plt.subplots(figsize=(16, 10))
     ax.set_facecolor("#f7f7f7")
 
     label_color_map = {
@@ -174,7 +174,7 @@ def generate_node_graph_image(target, limit=50):
     for node in G.nodes:
         node_label = G.nodes[node].get("label", "Unknown")
         node_colors.append(label_color_map.get(node_label, "#CCCCCC"))
-        node_sizes.append(8200 if node == center else 5600)
+        node_sizes.append(15000 if node == center else 10500)
 
     nx.draw_networkx_nodes(
         G,
@@ -191,8 +191,8 @@ def generate_node_graph_image(target, limit=50):
         pos,
         arrows=True,
         arrowstyle="-|>",
-        arrowsize=16,
-        width=1.5,
+        arrowsize=24,
+        width=3.2,
         edge_color="#999999",
         connectionstyle="arc3,rad=0.06",
         ax=ax
@@ -210,7 +210,7 @@ def generate_node_graph_image(target, limit=50):
             x,
             y,
             node_labels[node],
-            fontsize=16 if is_center else 12,
+            fontsize=24 if is_center else 17,
             color="black",
             fontweight="bold",
             fontproperties=chinese_font,
@@ -236,7 +236,7 @@ def generate_node_graph_image(target, limit=50):
             mx,
             my,
             edge_label,
-            fontsize=10,
+            fontsize=14,
             color="#555555",
             fontweight="bold",
             fontproperties=chinese_font,
@@ -258,7 +258,7 @@ def generate_node_graph_image(target, limit=50):
         transform=ax.transAxes,
         ha="center",
         va="bottom",
-        fontsize=26,
+        fontsize=34,
         fontweight="bold",
         fontproperties=chinese_font
     )
