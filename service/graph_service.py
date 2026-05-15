@@ -8,16 +8,19 @@ from rapidfuzz import fuzz
 from rapidfuzz import process as rf_process
 from datetime import date, datetime
 
-# ===== path helper =====
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, "data")
+
 
 def load_json(filename):
     path = os.path.join(DATA_DIR, filename)
+
+    print("DEBUG JSON PATH:", path)
+
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
-# ===== load config =====
+
 NODE_SCHEMA = load_json("node_schema.json")
 RELATION_META = load_json("relation_data.json")
 GENERIC_LOOKUP_CONFIG = load_json("lookup_config.json")
