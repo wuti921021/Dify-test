@@ -54,7 +54,7 @@ def extract_candidates_from_answer(answer):
     for line in answer.splitlines():
         line = line.strip()
 
-        # 格式 1：名稱：BHC212（類型：Project）
+        # 格式：名稱：BHC212（類型：Project）
         if "名稱：" in line:
             try:
                 name_part = line.split("名稱：", 1)[1]
@@ -62,11 +62,10 @@ def extract_candidates_from_answer(answer):
 
                 if name:
                     candidates.append(name)
-
             except Exception:
                 pass
 
-        # 格式 2：1. BHC212 (Project)
+        # 格式：1. BHC212 (Project)
         match = re.match(r"^\s*\d+\.\s*([A-Za-z0-9_\-:]+)\s*\(", line)
 
         if match:
@@ -75,7 +74,14 @@ def extract_candidates_from_answer(answer):
             if name:
                 candidates.append(name)
 
-    return candidates
+    # 去除重複，保留順序
+    unique_candidates = []
+
+    for c in candidates:
+        if c not in unique_candidates:
+            unique_candidates.append(c)
+
+    return unique_candidates
 
 
 def format_duplicate_candidates_message(user_text, candidates):
@@ -118,11 +124,9 @@ def is_simple_node_query(text):
 
     text = text.strip()
 
-    # 太長通常不是單節點
     if len(text) > 40:
         return False
 
-    # 有明顯問句或查詢詞，就不要當成單純節點
     query_words = [
         "有哪些",
         "是什麼",
@@ -157,7 +161,7 @@ def run_dify_background(to_id, user_text, user_id="line-user", selection_key=Non
     try:
         print("[BACKGROUND][START]", user_text)
 
-        # 0. 同名節點檢查
+        # 0. 單純節點名稱：先檢查 Neo4j 是否有同名節點
         if is_simple_node_query(user_text):
             duplicate_candidates = find_exact_duplicate_nodes(user_text, limit=10)
 
@@ -177,7 +181,7 @@ def run_dify_background(to_id, user_text, user_id="line-user", selection_key=Non
                 push_line_text(to_id, message)
                 return
 
-        # 1. 明確要求圖譜
+        # 1. 使用者明確要求圖譜
         if is_graph_request(user_text):
             target = extract_graph_target(user_text)
 
@@ -198,19 +202,20 @@ def run_dify_background(to_id, user_text, user_id="line-user", selection_key=Non
             )
             return
 
-        # 2. 一般查詢：先取得 Dify 文字回答
+        # 2. 一般查詢：呼叫 Dify
         answer = call_dify(user_text, user_id=user_id)
 
         if not answer:
             answer = "查詢完成，但沒有取得有效結果。"
 
-        # 3. 抓 Dify 回答中的候選節點
+        # 3. 從 Dify 回答中抓候選節點
         candidates = extract_candidates_from_answer(answer)
 
         print("[CANDIDATES][EXTRACTED]", candidates)
 
         if len(candidates) >= 2 and selection_key:
             PENDING_SELECTIONS[selection_key] = {
+                "mode": "name",
                 "candidates": candidates,
                 "original_query": user_text,
                 "user_id": user_id
@@ -222,7 +227,7 @@ def run_dify_background(to_id, user_text, user_id="line-user", selection_key=Non
             )
             return
 
-        # 4. 單節點查詢：同時產生圖片
+        # 4. 單節點查詢：如果查得到，補圖
         if is_simple_node_query(user_text):
             not_found_keywords = [
                 "查無相關資料",
@@ -269,86 +274,114 @@ def run_dify_background(to_id, user_text, user_id="line-user", selection_key=Non
 # Candidate Selection Flow
 # =========================
 
-def handle_candidate_selection(reply_token, cleaned_text, selection_key):
-    selection = int(cleaned_text)
+def handle_candidate_selection(reply_token, cleaned_text, selection_key, to_id):
+    try:
+        selection = int(cleaned_text)
 
-    pending = PENDING_SELECTIONS.get(selection_key, {})
-    candidates = pending.get("candidates", [])
-    mode = pending.get("mode", "name")
+        pending = PENDING_SELECTIONS.get(selection_key)
 
-    # 清除暫存
-    del PENDING_SELECTIONS[selection_key]
-
-    if not (1 <= selection <= len(candidates)):
-        reply_line_text(
-            reply_token,
-            f"編號 {selection} 不在候選範圍內，本次選擇已取消。請重新查詢。"
-        )
-        return
-
-    selected = candidates[selection - 1]
-
-    # 同名節點，用 node_id 查
-    if mode == "node_id":
-        selected_node_id = selected.get("node_id")
-        selected_name = selected.get("name", "")
-
-        result = query_node_by_element_id(selected_node_id)
-
-        if not result.get("found"):
-            reply_line_text(reply_token, "查無相關資料")
+        if not pending:
+            reply_line_text(reply_token, "目前沒有待選擇的查詢項目，請重新輸入問題。")
             return
 
-        lines = []
+        candidates = pending.get("candidates", [])
+        mode = pending.get("mode", "name")
+        user_id = pending.get("user_id", "line-user")
 
-        lines.append(
-            f"已選擇：{selected_name}（{result.get('label', 'Unknown')}）"
-        )
-        lines.append("")
+        # 清除暫存，避免下一次誤判
+        del PENDING_SELECTIONS[selection_key]
 
-        props = result.get("properties", {})
+        if not (1 <= selection <= len(candidates)):
+            reply_line_text(
+                reply_token,
+                f"編號 {selection} 不在候選範圍內，本次選擇已取消。請重新查詢。"
+            )
+            return
 
-        if props:
-            lines.append("節點屬性：")
+        selected = candidates[selection - 1]
 
-            for k, v in props.items():
-                if v is not None and str(v).strip():
-                    lines.append(f"- {k}: {v}")
+        # 情況 A：同名節點，用 node_id 直接查 Neo4j
+        if mode == "node_id":
+            selected_node_id = selected.get("node_id")
+            selected_name = selected.get("name", "")
 
+            result = query_node_by_element_id(selected_node_id)
+
+            if not result.get("found"):
+                reply_line_text(reply_token, "查無相關資料")
+                return
+
+            lines = []
+
+            lines.append(
+                f"已選擇：{selected_name}（{result.get('label', 'Unknown')}）"
+            )
             lines.append("")
 
-        relations = result.get("relations", [])
+            props = result.get("properties", {})
 
-        if relations:
-            lines.append("相關關係：")
+            if props:
+                lines.append("節點屬性：")
 
-            for r in relations[:10]:
-                lines.append(
-                    f"- {r.get('relation')} → "
-                    f"{r.get('target_name')}"
-                    f"（{r.get('target_label')}）"
+                for k, v in props.items():
+                    if v is not None and str(v).strip():
+                        lines.append(f"- {k}: {v}")
+
+                lines.append("")
+
+            relations = result.get("relations", [])
+
+            if relations:
+                lines.append("相關關係：")
+
+                for r in relations[:10]:
+                    lines.append(
+                        f"- {r.get('relation')} → "
+                        f"{r.get('target_name')}"
+                        f"（{r.get('target_label')}）"
+                    )
+
+            image_url = build_node_graph_image_url_by_id(selected_node_id)
+
+            if image_url:
+                reply_line_text_and_image(
+                    reply_token,
+                    "\n".join(lines),
+                    image_url=image_url
                 )
+            else:
+                reply_line_text(reply_token, "\n".join(lines))
 
-        image_url = build_node_graph_image_url_by_id(selected_node_id)
+            return
 
-        if image_url:
-            reply_line_text_and_image(
-                reply_token,
-                "\n".join(lines),
-                image_url=image_url
-            )
-        else:
-            reply_line_text(reply_token, "\n".join(lines))
+        # 情況 B：Dify 回答中列出的候選名稱
+        selected_node = selected
 
+        reply_line_text(
+            reply_token,
+            f"已選擇：{selected_node}\n系統正在查詢，請稍候。"
+        )
+
+        # 關鍵修正：
+        # 使用者選擇 1/2 後，要重新啟動查詢流程。
+        # selection_key 傳 None，避免再次進入候選選擇循環。
+        thread = threading.Thread(
+            target=run_dify_background,
+            args=(
+                to_id,
+                selected_node,
+                user_id,
+                None
+            ),
+            daemon=True
+        )
+
+        thread.start()
         return
 
-    # 一般候選節點
-    selected_node = selected
-
-    reply_line_text(
-        reply_token,
-        f"已選擇：{selected_node}\n系統正在查詢，請稍候。"
-    )
+    except Exception as e:
+        print("[ERROR][CANDIDATE_SELECTION]", str(e))
+        reply_line_text(reply_token, "處理選擇時發生錯誤，請重新查詢。")
 
 
 # =========================
@@ -384,7 +417,7 @@ def handle_line_webhook(request):
             print("[LINE][SKIP] missing reply_token or to_id")
             continue
 
-        # 群組需標註 bot
+        # 群組中需要被標註才回答
         ok, text = should_reply(event)
 
         if not ok:
@@ -397,9 +430,13 @@ def handle_line_webhook(request):
 
         print("[LINE][CLEANED_TEXT]", cleaned_text)
 
+        if not cleaned_text:
+            reply_line_text(reply_token, "請輸入要查詢的內容。")
+            continue
+
         selection_key = build_selection_key(to_id, source)
 
-        # 候選節點選擇
+        # 如果使用者正在選候選項目
         if cleaned_text.isdigit() and selection_key in PENDING_SELECTIONS:
             handle_candidate_selection(
                 reply_token,
@@ -409,29 +446,20 @@ def handle_line_webhook(request):
             )
             continue
 
-        # 一般候選節點
-        selected_node = selected
-        original_query = pending.get("original_query", "")
-        user_id = pending.get("user_id", "line-user")
-        
-        reply_line_text(
-            reply_token,
-            f"已選擇：{selected_node}\n系統正在查詢，請稍候。"
-        )
-        
-        # 避免再次進入候選選擇流程，這裡直接查使用者選到的節點名稱
+        # 一般查詢：先回覆，避免 LINE webhook timeout
+        reply_line_text(reply_token, "收到，正在查詢中。")
+
         thread = threading.Thread(
             target=run_dify_background,
             args=(
-                selection_key.split(":")[0],   # to_id
-                selected_node,                 # user_text
-                user_id,
-                None                           # 不再帶 selection_key，避免重複觸發候選
+                to_id,
+                cleaned_text,
+                source.get("userId", "line-user"),
+                selection_key
             ),
             daemon=True
         )
-        
+
         thread.start()
-        return
 
     return "OK", 200
