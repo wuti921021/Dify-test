@@ -60,7 +60,19 @@ def graph_query():
 
         result = query_graph_by_router(payload)
 
-        print("[GRAPH QUERY][RESULT]", result)
+        graph_result = result.get("graph_result", [])
+
+        if graph_result:
+            first = graph_result[0]
+            print("[GRAPH QUERY][RESULT]", {
+                "query_type": first.get("query_type"),
+                "query_mode": first.get("query_mode"),
+                "found": first.get("found"),
+                "node": first.get("node"),
+                "relation_count": len(first.get("relations", []))
+            })
+        else:
+            print("[GRAPH QUERY][RESULT] empty")
 
         return jsonify(result), 200
 
