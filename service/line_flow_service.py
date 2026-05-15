@@ -84,14 +84,14 @@ def extract_candidates_from_answer(answer):
 
     return unique_candidates
 
-def extract_relationship_from_answer(answer):
+def extract_relationship_from_answer(answer, user_text=""):
     if not answer:
         return None
 
-    # 優先抓原始 Neo4j relation type，例如：
-    # BHC212 --[INCLUDES]--> ACP212（包含）
-    pattern = r"([A-Za-z0-9_\-]+)\s*--\[([A-Z_]+)\]-->\s*([A-Za-z0-9_\-]+)"
-    match = re.search(pattern, answer)
+    # 格式 1：
+    # ACP212 --[USES_SPECIFIC_PART]--> 14500-850
+    pattern_arrow = r"([A-Za-z0-9_\-]+)\s*--\[([A-Z0-9_]+)\]-->\s*([A-Za-z0-9_\-]+)"
+    match = re.search(pattern_arrow, answer)
 
     if match:
         return {
@@ -100,8 +100,32 @@ def extract_relationship_from_answer(answer):
             "target": match.group(3).strip()
         }
 
-    # 備援：如果 Dify 只輸出中文關係，就不要產生關係圖
-    # 避免圖片中間顯示中文或方框
+    # 格式 2：
+    # ACP212 與 14500-850 的關係為：使用特定零件（USES_SPECIFIC_PART）
+    pattern_text = r"([A-Za-z0-9_\-]+)\s*(?:與|和|跟)\s*([A-Za-z0-9_\-]+).*?[（(]\s*([A-Z0-9_]+)\s*[）)]"
+    match = re.search(pattern_text, answer)
+
+    if match:
+        return {
+            "source": match.group(1).strip(),
+            "relation": match.group(3).strip(),
+            "target": match.group(2).strip()
+        }
+
+    # 格式 3：從使用者問題抓兩個節點，從回答抓 relation_type
+    entity_pattern = r"([A-Za-z0-9_\-]+)\s*(?:與|和|跟)\s*([A-Za-z0-9_\-]+)"
+    rel_pattern = r"[（(]\s*([A-Z0-9_]+)\s*[）)]"
+
+    entity_match = re.search(entity_pattern, user_text)
+    rel_match = re.search(rel_pattern, answer)
+
+    if entity_match and rel_match:
+        return {
+            "source": entity_match.group(1).strip(),
+            "relation": rel_match.group(1).strip(),
+            "target": entity_match.group(2).strip()
+        }
+
     return None
 
 def extract_relationship_from_graph_result(answer):
@@ -251,7 +275,7 @@ def run_dify_background(to_id, user_text, user_id="line-user", selection_key=Non
         
         # 2.5 如果是兩節點關係查詢，自動產生關係圖
         
-        relationship_info = extract_relationship_from_graph_result(answer)
+        relationship_info = extract_relationship_from_answer(answer, user_text)
 
         if relationship_info:
             image_url = build_relationship_graph_url(
