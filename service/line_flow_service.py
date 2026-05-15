@@ -229,21 +229,32 @@ def run_dify_background(to_id, user_text, user_id="line-user", selection_key=Non
         relationship_info = extract_relationship_from_answer(answer)
         
         if relationship_info:
-            image_url = build_relationship_graph_url(
-                relationship_info["source"],
-                relationship_info["type"],
-                relationship_info["target"]
-            )
+            source = relationship_info.get("source")
+            relation = relationship_info.get("relation")
+            target = relationship_info.get("target")
         
-            print("[RELATION IMAGE URL]", image_url)
+            print("[RELATION GRAPH DATA]", {
+                "source": source,
+                "relation": relation,
+                "target": target
+            })
         
-            if image_url:
-                push_line_text_and_image(
-                    to_id,
-                    answer,
-                    image_url=image_url
+            if source and relation and target:
+                image_url = build_relationship_graph_url(
+                    source,
+                    relation,
+                    target
                 )
-                return
+        
+                print("[RELATION IMAGE URL]", image_url)
+        
+                if image_url:
+                    push_line_text_and_image(
+                        to_id,
+                        answer,
+                        image_url=image_url
+                    )
+                    return
         
         # 3. 從 Dify 回答中抓候選節點
         candidates = extract_candidates_from_answer(answer)
