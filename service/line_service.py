@@ -119,30 +119,6 @@ def reply_line_text_and_image(reply_token, text, image_url=None):
     return r
 
 
-def call_dify(user_text, user_id="line-user"):
-    url = f"{DIFY_BASE_URL}/chat-messages"
-
-    headers = {
-        "Authorization": f"Bearer {DIFY_API_KEY}",
-        "Content-Type": "application/json"
-    }
-
-    payload = {
-        "inputs": {},
-        "query": user_text,
-        "response_mode": "blocking",
-        "conversation_id": "",
-        "user": user_id
-    }
-
-    r = requests.post(url, headers=headers, json=payload, timeout=180)
-    print("Dify status:", r.status_code, r.text[:500])
-    r.raise_for_status()
-
-    data = r.json()
-    return data.get("answer") or data.get("message") or str(data)
-
-
 def clean_line_text(text):
     if not text:
         return ""
