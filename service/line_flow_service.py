@@ -236,14 +236,17 @@ def run_dify_background(to_id, user_text, user_id="line-user", selection_key=Non
         if not answer:
             answer = "查詢完成，但沒有取得有效結果。"
         
+        # 2.5 如果是兩節點關係查詢，自動產生關係圖
         relationship_info = extract_relationship_from_answer(answer)
-
+        
         if relationship_info:
             image_url = build_relationship_graph_url(
                 relationship_info["source"],
                 relationship_info["relation"],
                 relationship_info["target"]
             )
+        
+            print("[RELATION IMAGE URL]", image_url)
         
             if image_url:
                 push_line_text_and_image(
