@@ -3,7 +3,8 @@ import threading
 
 from service.graph_service import (
     find_exact_duplicate_nodes,
-    query_node_by_element_id
+    query_node_by_element_id,
+    query_graph_by_router
 )
 
 from service.graph_web_service import (
@@ -250,15 +251,38 @@ def run_dify_background(to_id, user_text, user_id="line-user", selection_key=Non
             return
 
         # 2. 一般查詢：呼叫 Dify
+        graph_result = []
+
+        relation_match = re.search(
+            r"([A-Za-z0-9_\-]+)\s*(?:跟|與|和)\s*([A-Za-z0-9_\-]+)",
+            user_text
+        )
+        
+        if relation_match:
+            source_entity = relation_match.group(1).strip()
+            target_entity = relation_match.group(2).strip()
+        
+            graph_query_result = query_graph_by_router({
+                "intent": "relation_query",
+                "source_entity": source_entity,
+                "target_entity": target_entity,
+                "limit": 5,
+                "user_question": user_text
+            })
+        
+            graph_result = graph_query_result.get("graph_result", [])
+        
+            print("[LINE FLOW][DIRECT GRAPH_RESULT]", graph_result)
         dify_result = call_dify(user_text, user_id=user_id)
         answer, raw = normalize_dify_result(dify_result)
 
         if not answer:
             answer = "查詢完成，但沒有取得有效結果。"
 
-        graph_result = extract_graph_result_from_dify_raw(raw)
-
-        print("[DIFY][GRAPH_RESULT]", graph_result)
+        if not graph_result:
+            graph_result = extract_graph_result_from_dify_raw(raw)
+        
+        print("[LINE FLOW][GRAPH_RESULT]", graph_result)
 
         # 3. 統一由 graph_image_service 判斷是否需要附圖
         image_url = build_graph_image_url_from_result(graph_result)
