@@ -293,7 +293,7 @@ def generate_node_graph_from_rows(rows):
     ]
 
     sizes = [
-        2300 if node == center_name else 2100
+        4200 if node == center_name else 3800
         for node in graph.nodes()
     ]
 
@@ -391,7 +391,7 @@ def generate_relationship_graph_image(source, relation, target):
             graph,
             pos,
             node_color=["#18d7df", "#d7f5cf"],
-            node_size=2600,
+            node_size=4800,
             edgecolors="none"
         )
 
