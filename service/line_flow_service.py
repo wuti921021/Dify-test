@@ -13,7 +13,8 @@ from service.graph_web_service import (
 
 from service.graph_image_service import (
     build_node_graph_image_url,
-    build_node_graph_image_url_by_id
+    build_node_graph_image_url_by_id,
+    build_relationship_graph_url
 )
 
 from service.line_service import (
@@ -83,6 +84,33 @@ def extract_candidates_from_answer(answer):
 
     return unique_candidates
 
+def extract_relationship_from_answer(answer):
+    """
+    從 Dify 回答中抓出：
+    BHC212 --[包含]--> ACP212
+    """
+
+    if not answer:
+        return None
+
+    pattern = r"([A-Za-z0-9_\-]+)\s*--\[(.*?)\]-->\s*([A-Za-z0-9_\-]+)"
+    match = re.search(pattern, answer)
+
+    if not match:
+        return None
+
+    source = match.group(1).strip()
+    relation = match.group(2).strip()
+    target = match.group(3).strip()
+
+    if not source or not relation or not target:
+        return None
+
+    return {
+        "source": source,
+        "relation": relation,
+        "target": target
+    }
 
 def format_duplicate_candidates_message(user_text, candidates):
     lines = []
@@ -207,7 +235,24 @@ def run_dify_background(to_id, user_text, user_id="line-user", selection_key=Non
 
         if not answer:
             answer = "查詢完成，但沒有取得有效結果。"
+        
+        relationship_info = extract_relationship_from_answer(answer)
 
+        if relationship_info:
+            image_url = build_relationship_graph_url(
+                relationship_info["source"],
+                relationship_info["relation"],
+                relationship_info["target"]
+            )
+        
+            if image_url:
+                push_line_text_and_image(
+                    to_id,
+                    answer,
+                    image_url=image_url
+                )
+                return
+        
         # 3. 從 Dify 回答中抓候選節點
         candidates = extract_candidates_from_answer(answer)
 
