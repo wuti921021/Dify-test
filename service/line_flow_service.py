@@ -15,7 +15,7 @@ from service.graph_web_service import (
 from service.graph_image_service import (
     build_node_graph_image_url,
     build_node_graph_image_url_by_id,
-    build_graph_image_url_from_result
+    build_relationship_graph_url
 )
 
 from service.line_service import (
@@ -284,18 +284,43 @@ def run_dify_background(to_id, user_text, user_id="line-user", selection_key=Non
         
         print("[LINE FLOW][GRAPH_RESULT]", graph_result)
 
-        # 3. 統一由 graph_image_service 判斷是否需要附圖
-        image_url = build_graph_image_url_from_result(graph_result)
-
-        if image_url:
-            print("[GRAPH IMAGE URL]", image_url)
-
-            push_line_text_and_image(
-                to_id,
-                answer,
-                image_url=image_url
-            )
-            return
+       # 3. relation_query → 產生兩點關係圖
+        if graph_result:
+        
+            first = graph_result[0]
+        
+            query_type = first.get("query_type")
+        
+            # 兩點關係圖
+            if query_type == "relation_query":
+        
+                source = first.get("source")
+                relation = first.get("relation_type")
+                target = first.get("target")
+        
+                print("[RELATION GRAPH DATA]", {
+                    "source": source,
+                    "relation": relation,
+                    "target": target
+                })
+        
+                if source and relation and target:
+        
+                    image_url = build_relationship_graph_url(
+                        source,
+                        relation,
+                        target
+                    )
+        
+                    print("[RELATION GRAPH URL]", image_url)
+        
+                    if image_url:
+                        push_line_text_and_image(
+                            to_id,
+                            answer,
+                            image_url=image_url
+                        )
+                        return
 
         # 4. 從 Dify 回答中抓候選節點
         candidates = extract_candidates_from_answer(answer)
