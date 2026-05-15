@@ -55,14 +55,18 @@ STATIC_DIR = os.path.join(BASE_DIR, "static")
 os.makedirs(STATIC_DIR, exist_ok=True)
 
 def build_relationship_graph_url(source, relation, target):
+    if not PUBLIC_BASE_URL:
+        print("[ERROR][PUBLIC_BASE_URL] PUBLIC_BASE_URL is not set")
+        return None
 
-    source = quote(source)
-    relation = quote(relation)
-    target = quote(target)
+    base_url = PUBLIC_BASE_URL.rstrip("/")
+
+    source = quote(str(source))
+    relation = quote(str(relation))
+    target = quote(str(target))
 
     return (
-        f"https://你的render網址.onrender.com"
-        f"/graph/relation-image"
+        f"{base_url}/graph/relation-image"
         f"?source={source}"
         f"&relation={relation}"
         f"&target={target}"
