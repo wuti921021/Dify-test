@@ -184,7 +184,6 @@ def wrap_label(text, max_len=14):
         for i in range(0, len(text), max_len)
     )
 
-
 def get_node_color(labels, is_center=False):
     if is_center:
         return "#18d7df"
@@ -268,7 +267,7 @@ def generate_node_graph_from_rows(rows):
     node_colors[center_name] = get_node_color(center_labels, is_center=True)
     
     # 僅在要繪製在圖面上的標籤調用 apply_smart_mask
-    node_labels[center_name] = wrap_label(apply_smart_mask(center_name), max_len=13)
+    node_labels[center_name] = wrap_label(center_name, max_len=13)
 
     neighbors = []
 
@@ -288,7 +287,7 @@ def generate_node_graph_from_rows(rows):
         node_colors[neighbor_name] = get_node_color(neighbor_labels)
         
         # 同樣地，周圍鄰近球球也是在產生顯示標籤時才予以打碼
-        node_labels[neighbor_name] = wrap_label(apply_smart_mask(neighbor_name), max_len=16)
+        node_labels[neighbor_name] = wrap_label(neighbor_name, max_len=16)
 
         if outgoing:
             graph.add_edge(center_name, neighbor_name)
@@ -355,7 +354,7 @@ def generate_node_graph_from_rows(rows):
 
     # 圖片上方的標題也一併予以馬賽克處理
     plt.title(
-        f"{apply_smart_mask(center_name)} graph",
+        f"{center_name} graph",
         fontsize=16,
         fontweight="bold",
         fontfamily=FONT_NAME
@@ -386,28 +385,26 @@ def generate_node_graph_from_rows(rows):
 
 def generate_relationship_graph_image(source, relation, target):
     try:
-        # 雙節點關係預覽圖：將被打碼的字串純粹用於展示
-        masked_source = apply_smart_mask(source)
-        masked_target = apply_smart_mask(target)
-
+        display_source = str(source)
+        display_target = str(target)
+        
         graph = nx.DiGraph()
-
-        graph.add_node(masked_source)
-        graph.add_node(masked_target)
-        graph.add_edge(masked_source, masked_target)
-
+        graph.add_node(display_source)
+        graph.add_node(display_target)
+        graph.add_edge(display_source, display_target)
+        
         pos = {
-            masked_source: (-1.6, 0),
-            masked_target: (1.6, 0)
+            display_source: (-1.6, 0),
+            display_target: (1.6, 0)
         }
-
+        
         node_labels = {
-            masked_source: wrap_label(masked_source, max_len=16),
-            masked_target: wrap_label(masked_target, max_len=16)
+            display_source: wrap_label(display_source, max_len=16),
+            display_target: wrap_label(display_target, max_len=16)
         }
-
+        
         edge_labels = {
-            (masked_source, masked_target): relation
+            (display_source, display_target): relation
         }
 
         plt.figure(figsize=(8, 3))
@@ -454,7 +451,7 @@ def generate_relationship_graph_image(source, relation, target):
         )
 
         plt.title(
-            f"{masked_source} relation graph",
+            f"{display_source} relation graph",
             fontsize=15,
             fontweight="bold",
             fontfamily=FONT_NAME
